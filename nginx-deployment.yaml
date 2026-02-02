@@ -1,7 +1,7 @@
 apiVersion: apps/v1
-kind: ReplicaSet
+kind: Deployment
 metadata:
-  name: pod-replicaset
+  name: nginx-deployment
   namespace: scloud-compute
 spec:
   # Number of desired pod replicas.
@@ -21,7 +21,7 @@ spec:
   # Setting replicas to 0 will stop all Pods but will NOT delete the ReplicaSet.
   # To completely remove the ReplicaSet, use:
   # kubectl delete rs <ReplicaSet file> -n <namespace>
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: nginx
