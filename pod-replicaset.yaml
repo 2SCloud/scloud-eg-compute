@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: pod-replicaset
+  namespace: scloud-compute
+spec:
+  # Number of desired pod replicas.
+  # This value defines the desired state stored in Kubernetes.
+  #
+  # IMPORTANT:
+  # The number of replicas can be modified at runtime without reapplying this YAML file
+  # using the following command:
+  #
+  # kubectl scale rs <ReplicaSet file> --replicas=<NUMBER> -n <namespace>
+  #
+  # This command updates the ReplicaSet directly in the cluster.
+  # However, reapplying this YAML file will reset the replicas
+  # back to the value defined here.
+  #
+  # NOTE:
+  # Setting replicas to 0 will stop all Pods but will NOT delete the ReplicaSet.
+  # To completely remove the ReplicaSet, use:
+  # kubectl delete rs <ReplicaSet file> -n <namespace>
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
