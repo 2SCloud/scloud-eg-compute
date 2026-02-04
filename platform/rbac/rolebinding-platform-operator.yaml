@@ -4,9 +4,9 @@ metadata:
   name: platform-operator-binding
   namespace: scloud-compute
 subjects:
-- kind: User
-  name: onihilist
-  apiGroup: rbac.authorization.k8s.io
+  - kind: ServiceAccount
+    name: onihilist-sa
+    namespace: platform-system
 roleRef:
   kind: Role
   name: platform-operator
