@@ -12,3 +12,15 @@ spec:
     defaultRequest:
       cpu: 200m
       memory: 256Mi
+  - type: Pod
+    default:
+      cpu: 1000m
+      memory: 1Gi
+    defaultRequest:
+      cpu: 400m
+      memory: 512Mi
+  - type: PersistentVolumeClaim
+    default:
+      storage: 10Gi
+    defaultRequest:
+      storage: 5Gi
