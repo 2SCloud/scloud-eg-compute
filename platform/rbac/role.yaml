@@ -1,0 +1,38 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: platform-operator
+  namespace: scloud-compute
+rules:
+  - apiGroups: ["", "apps", "batch"]
+    resources: ["pods", "deployments", "services", "configmaps", "secrets", "jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log", "pods/exec"]
+    verbs: ["get", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: platform-readonly
+rules:
+  - apiGroups: ["", "apps", "batch"]
+    resources: ["pods", "deployments", "services", "configmaps", "jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ci-runner
+  namespace: scloud-compute
+rules:
+  - apiGroups: ["", "apps"]
+    resources: ["pods", "deployments", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+
