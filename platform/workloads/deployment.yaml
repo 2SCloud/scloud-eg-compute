@@ -11,7 +11,7 @@ spec:
   # The number of replicas can be modified at runtime without reapplying this YAML file
   # using the following command:
   #
-  # kubectl scale rs <ReplicaSet file> --replicas=<NUMBER> -n <namespace>
+  # kubectl scale deployment <Deployment name> -n <namespace> --replicas=<NUMBER> 
   #
   # This command updates the ReplicaSet directly in the cluster.
   # However, reapplying this YAML file will reset the replicas
