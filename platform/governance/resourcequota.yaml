@@ -6,8 +6,8 @@ metadata:
 spec:
   hard:
     # 1) Compute (total for the namespace)
-    request.cpu: "4"
-    request.memory: "8Gi"
+    requests.cpu: "4"
+    requests.memory: "8Gi"
     limits.cpu: "8"
     limits.memory: "16Gi"
 
