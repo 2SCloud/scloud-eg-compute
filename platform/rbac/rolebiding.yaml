@@ -39,3 +39,17 @@ roleRef:
   kind: Role
   name: ci-runner
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: scloud-dns-binding
+  namespace: scloud-dns
+subjects:
+  - kind: ServiceAccount
+    name: scloud-dns
+    namespace: scloud-dns
+roleRef:
+  kind: Role
+  name: scloud-dns
+  apiGroup: rbac.authorization.k8s.io
