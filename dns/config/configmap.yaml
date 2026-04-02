@@ -1,0 +1,184 @@
+# ------------------------------------------------------------
+# scloud-dns configuration for Kubernetes cluster
+#
+# config.json  → mounted at /app/config/config.json
+#                overrides the image's baked-in config
+#
+# scloud.internal.zone → mounted at /app/config/scloud.internal.zone
+#                        authoritative zone for the internal domain
+#
+# Key differences from the upstream example config:
+#   - health_bind changed to 0.0.0.0:8081 (required for k8s probes)
+#   - Only UDP+TCP listeners on 0.0.0.0 (no 10.0.0.1 internal-resolver)
+#   - DoT and DoH disabled (no TLS certs in cluster yet)
+#   - Log to stdout only (no file — logs go to the OTEL collector)
+#   - scloud.internal. zone added as authoritative master
+#   - Recursion allowed for cluster pod CIDRs
+# ------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scloud-dns-config
+  namespace: scloud-dns
+  labels:
+    app: scloud-dns
+data:
+  config.json: |
+    {
+      "server": {
+        "name": "scloud-dns",
+        "version": "0.2.3",
+        "environment": "production",
+        "max_concurrent_requests": 5000,
+        "graceful_shutdown_timeout_secs": 15,
+        "default_ttl": 3600,
+        "max_udp_payload": 4096,
+        "enable_edns": true,
+        "enable_tcp": true,
+        "enable_dnssec": false,
+        "bind_port": 53
+      },
+      "workers": {
+        "tcp_acceptor": 2,
+        "decoder": 2,
+        "query_dispatcher": 1,
+        "cache_lookup": 2,
+        "zone_manager": 1,
+        "resolver": 2,
+        "cache_writer": 2,
+        "encoder": 2,
+        "sender": 2,
+        "cache_janitor": 1,
+        "metrics": 1
+      },
+      "logging": {
+        "level": "info",
+        "format": "text",
+        "dyn_ui": false,
+        "rotate": false,
+        "live_print": true
+      },
+      "metrics": {
+        "enabled": true,
+        "prometheus_bind": "0.0.0.0:9153",
+        "enable_health_endpoint": true,
+        "health_bind": "0.0.0.0:8081"
+      },
+      "admin": {
+        "enabled": true,
+        "bind": "127.0.0.1:8053",
+        "auth_token": "replace-with-secure-token",
+        "enable_tls": false
+      },
+      "acl": [
+        {
+          "name": "localhost",
+          "networks": ["127.0.0.0/8", "::1/128"]
+        },
+        {
+          "name": "internal",
+          "networks": [
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.0.0/16"
+          ]
+        }
+      ],
+      "listener": [
+        {
+          "name": "cluster-udp",
+          "address": "0.0.0.0",
+          "port": 53,
+          "protocols": ["udp"],
+          "recursion_allowed": true,
+          "acl": "internal",
+          "workers": 4
+        },
+        {
+          "name": "cluster-tcp",
+          "address": "0.0.0.0",
+          "port": 53,
+          "protocols": ["tcp"],
+          "recursion_allowed": true,
+          "acl": "internal",
+          "workers": 2
+        }
+      ],
+      "doh": {
+        "enabled": false
+      },
+      "forwarder": [
+        {
+          "name": "google",
+          "addresses": ["8.8.8.8:53", "8.8.4.4:53"],
+          "policy": "round_robin",
+          "timeout_ms": 1500,
+          "edns": true,
+          "use_tcp_on_retry": true
+        },
+        {
+          "name": "cloudflare",
+          "addresses": ["1.1.1.1:53", "1.0.0.1:53"],
+          "policy": "first",
+          "timeout_ms": 1000,
+          "edns": true
+        }
+      ],
+      "cache": {
+        "enabled": true,
+        "max_entries": 50000,
+        "max_ttl_seconds": 86400,
+        "negative_ttl_seconds": 300,
+        "eviction_policy": "light-lru"
+      },
+      "recursion": {
+        "enabled": true,
+        "allowed_acl": "internal",
+        "max_recursive_queries": 50,
+        "recursion_timeout_ms": 5000,
+        "retry_interval_ms": 200
+      },
+      "ratelimit": {
+        "enabled": true,
+        "global_qps": 3000,
+        "per_ip_qps": 100,
+        "per_subnet_qps": 1000,
+        "rrl": {
+          "enabled": true,
+          "window_seconds": 5,
+          "slip": 2,
+          "qps_threshold": 50
+        }
+      },
+      "zone": [
+        {
+          "name": "scloud.internal.",
+          "type": "master",
+          "file": "/app/config/scloud.internal.zone",
+          "notify": false
+        }
+      ]
+    }
+
+  scloud.internal.zone: |
+    $TTL 300
+    @   IN SOA  dns.scloud.internal. admin.scloud.internal. (
+                2024040201  ; serial — bump when records change
+                3600        ; refresh
+                900         ; retry
+                604800      ; expire
+                300 )       ; minimum TTL
+    @   IN NS   dns.scloud.internal.
+
+    ; ── Platform services ─────────────────────────────────────────────
+    ; CNAME records pointing to Kubernetes service FQDNs.
+    ; The client resolver follows the CNAME back to CoreDNS automatically.
+
+    ; Edge gateway — only public entrypoint to the cloud
+    gateway     IN CNAME  edge-gateway.scloud-gateway.svc.cluster.local.
+
+    ; DNS server itself
+    dns         IN CNAME  scloud-dns.scloud-dns.svc.cluster.local.
+
+    ; Add records below as new services are deployed:
+    ; <service>  IN CNAME  <name>.<namespace>.svc.cluster.local.

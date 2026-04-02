@@ -1,0 +1,42 @@
+# ------------------------------------------------------------
+# Allow any pod in the cluster to query scloud-dns on port 53.
+# Also allow Prometheus scraping on port 9153 from the observability namespace.
+# ------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-queries
+  namespace: scloud-dns
+spec:
+  podSelector:
+    matchLabels:
+      app: scloud-dns
+  policyTypes:
+  - Ingress
+  ingress:
+  # DNS queries from any pod in the cluster (UDP + TCP port 53)
+  - from:
+    - namespaceSelector: {}   # all namespaces
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # CoreDNS forwarding from kube-system
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Prometheus scraping from observability namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: scloud-observability
+    ports:
+    - protocol: TCP
+      port: 9153
