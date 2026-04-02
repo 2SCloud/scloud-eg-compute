@@ -1,0 +1,16 @@
+# ------------------------------------------------------------
+# Default deny-all ingress policy for scloud-compute
+# Zero-trust baseline: no pod in this namespace can receive
+# inbound traffic unless a more specific NetworkPolicy allows it.
+# Egress is unrestricted so pods can reach DNS, external APIs, etc.
+# ------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: scloud-compute
+spec:
+  podSelector: {}   # applies to ALL pods in this namespace
+  policyTypes:
+  - Ingress
+  # No ingress rules = deny all ingress by default

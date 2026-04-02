@@ -1,0 +1,28 @@
+# ------------------------------------------------------------
+# Allow ingress to nginx pods ONLY from edge-gateway pods
+# The namespaceSelector + podSelector are in the SAME list entry
+# (AND logic) — not separate entries (which would be OR logic).
+# This ensures only gateway pods in the gateway namespace can reach nginx.
+# ------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-edge-gateway
+  namespace: scloud-compute
+spec:
+  podSelector:
+    matchLabels:
+      app: nginx
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: scloud-gateway
+      podSelector:
+        matchLabels:
+          app: edge-gateway
+    ports:
+    - protocol: TCP
+      port: 80

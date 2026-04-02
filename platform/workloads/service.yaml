@@ -1,0 +1,22 @@
+# ------------------------------------------------------------
+# nginx-backend ClusterIP Service
+# Internal-only service so the edge gateway can reach nginx pods
+# via a stable DNS name: nginx-backend.scloud-compute.svc.cluster.local
+# Not exposed externally — all external traffic goes through the gateway.
+# ------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-backend
+  namespace: scloud-compute
+  labels:
+    app: nginx
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
