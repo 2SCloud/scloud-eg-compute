@@ -1,0 +1,23 @@
+# Autorise l'accès au frontend uniquement depuis le gateway
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-gateway
+  namespace: scloud-frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: scloud-frontend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: scloud-gateway
+      podSelector:
+        matchLabels:
+          app: edge-gateway
+    ports:
+    - protocol: TCP
+      port: 3000

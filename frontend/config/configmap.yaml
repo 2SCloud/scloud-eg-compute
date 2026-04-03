@@ -1,0 +1,16 @@
+# ------------------------------------------------------------
+# Frontend runtime environment
+# NEXT_PUBLIC_API_URL points to the edge gateway admin API.
+# When empty, the dashboard uses generated mock data.
+# ------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: scloud-frontend
+  labels:
+    app: scloud-frontend
+data:
+  NEXT_PUBLIC_API_URL: "http://edge-gateway.scloud-gateway.svc.cluster.local"
+  HOSTNAME: "0.0.0.0"
+  PORT: "3000"

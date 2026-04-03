@@ -93,7 +93,7 @@ step "2SCloud private cloud bootstrap complete"
 echo
 echo "  Grafana      →  http://grafana.scloud.internal:3000  (admin / scloud-change-me)"
 echo "  Prometheus   →  http://prometheus.scloud.internal:9090"
-echo "  Gateway      →  http://gateway.scloud.internal"
+echo "  Gateway      →  http://gateway.scloud.internal:30080"
 echo "  DNS          →  scloud-dns.scloud-dns.svc:53"
 echo
 echo "  IMPORTANT: Change the Grafana admin password before exposing to users."

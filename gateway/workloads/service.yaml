@@ -21,7 +21,7 @@ metadata:
     # Uncomment for MetalLB — specify which address pool to use:
     # metallb.universe.tf/address-pool: public
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: edge-gateway
   ports:
@@ -29,5 +29,4 @@ spec:
     protocol: TCP
     port: 80
     targetPort: http   # resolves to containerPort named "http" (8080)
-    # nodePort: 30080  # set this if using type: NodePort instead
-  externalTrafficPolicy: Local
+    nodePort: 30080
