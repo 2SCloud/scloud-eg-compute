@@ -26,26 +26,21 @@ step() { echo; echo "───────────────────�
 # ── 1. scloud-observability ───────────────────────────────────────────────────
 step "1/4  Deploying scloud-observability"
 
-kubectl apply -f "$REPO_ROOT/observability/namespace.yaml"
+(cd "$REPO_ROOT/observability-stack" && bash deploy-scloud-observability.sh)
 
-# ClusterRoles must exist before bindings in the same namespace
+log "Applying observability RBAC..."
 kubectl apply -f "$REPO_ROOT/observability/rbac/clusterrole.yaml"
 kubectl apply -f "$REPO_ROOT/observability/rbac/clusterrolebinding.yaml"
 kubectl apply -f "$REPO_ROOT/observability/rbac/serviceaccount.yaml"
 
+log "Applying observability governance..."
 kubectl apply -f "$REPO_ROOT/observability/governance/"
-kubectl apply -f "$REPO_ROOT/observability/network/"
+
+log "Applying observability storage..."
 kubectl apply -f "$REPO_ROOT/observability/storage/"
 
-# Start backend stores first so Alloy has somewhere to write on startup
-kubectl apply -f "$REPO_ROOT/observability/workloads/loki/"
-kubectl apply -f "$REPO_ROOT/observability/workloads/tempo/"
-kubectl apply -f "$REPO_ROOT/observability/workloads/prometheus/"
-kubectl apply -f "$REPO_ROOT/observability/workloads/grafana/"
-kubectl apply -f "$REPO_ROOT/observability/workloads/alloy/"
-
-log "Waiting for Alloy to be ready (scloud-dns OTEL export depends on it)..."
-kubectl rollout status deployment/alloy -n scloud-observability --timeout=180s
+log "Applying observability network policies..."
+kubectl apply -f "$REPO_ROOT/observability/network/netpol.yaml"
 
 # ── 2. scloud-dns ─────────────────────────────────────────────────────────────
 step "2/4  Deploying scloud-dns"

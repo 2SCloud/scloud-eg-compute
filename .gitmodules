@@ -1,0 +1,3 @@
+[submodule "observability-stack"]
+	path = observability-stack
+	url = git@github.com:2SCloud/scloud-observability.git
