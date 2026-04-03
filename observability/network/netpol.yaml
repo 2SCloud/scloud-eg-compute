@@ -1,0 +1,81 @@
+# ------------------------------------------------------------
+# scloud-observability network policies
+#
+# - Default-deny all ingress (explicit baseline)
+# - Allow OTEL ingress (gRPC 4317, HTTP 4318) from all namespaces into Alloy
+# - Allow Grafana UI access from the gateway namespace
+# - Allow free intra-namespace communication (observability components
+#   talk to each other: Alloy→Loki, Alloy→Tempo, Alloy→Prometheus, etc.)
+# Egress is unrestricted — components need to scrape cross-namespace targets
+# (Alloy → scloud-dns:9153) and forward to each other within the namespace.
+# ------------------------------------------------------------
+---
+# Explicit baseline — must come first so every pod has an Ingress policy.
+# K8s NetworkPolicy is additive: the allow-* rules below punch holes in this.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: scloud-observability
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  # No ingress rules = deny all ingress by default
+---
+# Alloy: accept OTEL from any namespace (cluster-wide telemetry sink)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-otel-ingress
+  namespace: scloud-observability
+spec:
+  podSelector:
+    matchLabels:
+      app: alloy
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}   # all namespaces
+      ports:
+        - protocol: TCP
+          port: 4317              # gRPC OTEL
+        - protocol: TCP
+          port: 4318              # HTTP OTEL
+---
+# Grafana: accept UI traffic only from the edge gateway
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-grafana-from-gateway
+  namespace: scloud-observability
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: scloud-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+# All observability components: allow intra-namespace traffic
+# (Alloy→Prometheus, Alloy→Loki, Alloy→Tempo, Grafana datasource queries, etc.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+  namespace: scloud-observability
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}         # any pod within scloud-observability
