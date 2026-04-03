@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scloud-dns
+  labels:
+    name: scloud-dns
+    kubernetes.io/metadata.name: scloud-dns
+    app.kubernetes.io/part-of: 2scloud

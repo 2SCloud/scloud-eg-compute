@@ -1,0 +1,57 @@
+# ------------------------------------------------------------
+# CoreDNS ConfigMap patch — adds scloud.internal stub zone
+#
+# This tells the cluster's CoreDNS to forward all *.scloud.internal
+# queries to scloud-dns instead of trying to resolve them itself.
+#
+# HOW TO APPLY:
+#   kubectl apply -f coredns-patch.yaml
+#
+# This is a full replacement of the kube-system/coredns ConfigMap.
+# Before applying, verify your existing Corefile has no custom
+# additions beyond the k3s/kubeadm defaults — if it does, merge
+# the scloud.internal block manually.
+#
+# VERIFY after apply:
+#   kubectl rollout restart deployment/coredns -n kube-system
+#   kubectl run -it --rm dns-test --image=busybox --restart=Never -- \
+#     nslookup gateway.scloud.internal
+# ------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+            lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+            pods insecure
+            fallthrough in-addr.arpa ip6.arpa
+            ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+            max_concurrent 1000
+        }
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+
+    # ── scloud.internal stub zone ────────────────────────────────────
+    # All *.scloud.internal queries are forwarded to scloud-dns.
+    # CoreDNS resolves the FQDN below using its own cluster.local zone,
+    # so this works without hardcoding a ClusterIP.
+    scloud.internal:53 {
+        forward . scloud-dns.scloud-dns.svc.cluster.local:53
+        cache 30
+        log
+        errors
+    }
