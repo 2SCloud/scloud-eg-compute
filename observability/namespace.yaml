@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scloud-observability
+  labels:
+    name: scloud-observability
+    kubernetes.io/metadata.name: scloud-observability
+    app.kubernetes.io/part-of: 2scloud

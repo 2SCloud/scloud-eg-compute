@@ -1,0 +1,27 @@
+# ------------------------------------------------------------
+# Prometheus configuration
+#
+# Scraping is primarily handled by Alloy (which pushes via
+# remote_write). This config adds a self-scrape job and keeps
+# Prometheus minimal — start with --web.enable-remote-write-receiver.
+# ------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: scloud-observability
+  labels:
+    app: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      evaluation_interval: 30s
+      external_labels:
+        cluster: scloud
+
+    scrape_configs:
+      # Self-scrape so Grafana can show Prometheus internals
+      - job_name: prometheus
+        static_configs:
+          - targets: ['localhost:9090']
