@@ -47,8 +47,8 @@ data:
 
     # ── scloud.internal stub zone ────────────────────────────────────
     # All *.scloud.internal queries are forwarded to scloud-dns.
-    # CoreDNS resolves the FQDN below using its own cluster.local zone,
-    # so this works without hardcoding a ClusterIP.
+    # The placeholder below is replaced with the scloud-dns ClusterIP
+    # at deploy time by deploy.sh — forward only accepts IP addresses.
     scloud.internal:53 {
         forward . scloud-dns.scloud-dns.svc.cluster.local:53
         cache 30

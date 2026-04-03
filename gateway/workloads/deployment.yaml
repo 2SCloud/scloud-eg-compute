@@ -63,8 +63,7 @@ spec:
       containers:
       - name: edge-gateway
         image: 2scloud/edge-gateway:latest
-        # Switch to IfNotPresent once images are tagged by git SHA
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
 
         workingDir: /app
 

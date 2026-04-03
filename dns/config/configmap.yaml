@@ -26,6 +26,7 @@ data:
   config.json: |
     {
       "server": {
+        "instance_id": "scloud-dns-k8s",
         "name": "scloud-dns",
         "version": "0.2.3",
         "environment": "production",
@@ -39,7 +40,8 @@ data:
         "bind_port": 53
       },
       "workers": {
-        "tcp_acceptor": 2,
+        "listener": 4,
+        "tcp_acceptor": 1,
         "decoder": 2,
         "query_dispatcher": 1,
         "cache_lookup": 2,
@@ -54,9 +56,11 @@ data:
       "logging": {
         "level": "info",
         "format": "text",
+        "file": "/var/log/scloud-dns/scloud-dns.log",
         "dyn_ui": false,
         "rotate": false,
-        "live_print": true
+        "live_print": true,
+        "max_size_mb": 200
       },
       "metrics": {
         "enabled": true,
@@ -105,7 +109,8 @@ data:
         }
       ],
       "doh": {
-        "enabled": false
+        "enabled": false,
+        "bind": "0.0.0.0:443"
       },
       "forwarder": [
         {
