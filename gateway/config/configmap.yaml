@@ -1,0 +1,127 @@
+# ------------------------------------------------------------
+# Edge Gateway ConfigMap
+#
+# config.toml  → mounted at /etc/edge-gateway/config.toml
+#                pointed to by EDGE_CONFIG env var
+#
+# waf.json     → mounted at /app/internal/config/rules/waf.json
+#                runtime.go uses os.DirFS("./internal/config/rules/")
+#                with workingDir=/app, so this path must match exactly
+# ------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: edge-gateway-config
+  namespace: scloud-gateway
+  labels:
+    app: edge-gateway
+data:
+  config.toml: |
+    version = "1.0"
+
+    [server]
+    bind = "0.0.0.0:8080"
+    admin_bind = "127.0.0.1:9090"
+    graceful_shutdown_ms = 5000
+
+    [logging]
+    level = "info"
+    format = "json"
+    output = "stdout"
+
+    [wasm]
+    runtime     = "wazero"
+    cache_dir   = "/tmp/wasm-cache"
+    max_modules = 64
+
+    [[modules]]
+    id          = "waf"
+    enabled     = true
+    path        = "/app/modules/scloud-eg-waf/target/wasm32-wasip1/release/scloud_eg_waf.wasm"
+    route       = "/"
+    timeout_ms  = 200
+    config_mode = "inline"
+
+        [modules.config]
+        mode           = "block"
+        log            = true
+        blocked_status = 403
+
+        max_header_bytes = 16384
+        max_body_bytes   = 1048576
+        inspect_body     = false
+        normalize_path   = true
+
+        scope_mode       = "prefix"
+        include          = ["/api", "/healthz"]
+        exclude          = ["/metrics", "/favicon.ico"]
+        default_behavior = "protect"
+
+        allowed_methods     = ["GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"]
+        # Adjust these to match your cluster's pod/node CIDR ranges
+        ip_allowlist        = ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"]
+        ip_denylist         = []
+
+        block_path_prefixes = ["/admin", "/.git"]
+
+        rules_path           = "waf.json"
+        rules_reload_seconds = 60
+
+    [[modules]]
+    id          = "ratelimit"
+    enabled     = true
+    path        = "/app/modules/scloud-eg-rate-limit/target/wasm32-wasip1/release/scloud_eg_rate_limit.wasm"
+    route       = "/rate-limit"
+    timeout_ms  = 50
+    config_mode = "init"
+
+        [modules.config]
+        max_requests   = 100
+        window_seconds = 30
+
+  waf.json: |
+    {
+      "version": 1,
+      "rules": [
+        {
+          "id": "path-traversal",
+          "description": "Detect path traversal attempts",
+          "enabled": true,
+          "type": "path_contains",
+          "values": ["..", "%2e%2e", "%2E%2E"],
+          "action": "block"
+        },
+        {
+          "id": "admin-path",
+          "description": "Block admin paths",
+          "enabled": true,
+          "type": "path_prefix",
+          "values": ["/admin", "/.git", "/.env"],
+          "action": "block"
+        },
+        {
+          "id": "xss-basic",
+          "description": "Basic XSS patterns",
+          "enabled": true,
+          "type": "regex",
+          "values": [
+            "(?i)<script",
+            "(?i)onerror\\s*=",
+            "(?i)javascript:"
+          ],
+          "action": "block"
+        },
+        {
+          "id": "sql-injection-basic",
+          "description": "Basic SQLi patterns",
+          "enabled": true,
+          "type": "regex",
+          "values": [
+            "(?i)union\\s+select",
+            "(?i)or\\s+1=1",
+            "(?i)'\\s+or\\s+'1'='1"
+          ],
+          "action": "block"
+        }
+      ]
+    }

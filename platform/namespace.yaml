@@ -4,3 +4,4 @@ metadata:
   name: scloud-compute
   labels:
     name: scloud-compute
+    kubernetes.io/metadata.name: scloud-compute
