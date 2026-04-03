@@ -1,0 +1,35 @@
+# ------------------------------------------------------------
+# scloud-gateway network policies
+#
+# The edge-gateway is the only external entrypoint — cluster pods
+# should never initiate connections to it.
+#
+# Ingress:
+#   - External LoadBalancer traffic is handled by kube-proxy (not
+#     governed by NetworkPolicy), so we don't need an ingress rule
+#     for it. NetworkPolicy only controls pod-to-pod traffic.
+#   - Explicitly deny all pod-initiated ingress: no namespace selector
+#     means no cluster pod can reach the gateway directly.
+#
+# Egress (unrestricted by design):
+#   - Forwards HTTP to scloud-compute/nginx
+#   - Queries DNS (CoreDNS / scloud-dns)
+#   - Will forward OTEL to scloud-observability/alloy once instrumented
+#
+# If you want to lock down egress too, replace the unrestricted egress
+# comment with explicit rules for ports 80 (nginx), 53 (DNS), 4318 (OTEL).
+# ------------------------------------------------------------
+---
+# Default deny all pod-initiated ingress into the gateway namespace.
+# LoadBalancer→gateway traffic bypasses NetworkPolicy (handled at the node
+# network level by the cloud provider / kube-proxy).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: scloud-gateway
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  # No ingress rules = no cluster pod can reach gateway pods directly
