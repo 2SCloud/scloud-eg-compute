@@ -1,0 +1,84 @@
+# ------------------------------------------------------------
+# Grafana Alloy configuration (River syntax)
+#
+# Responsibilities:
+#   - Receive OTEL signals (traces, metrics, logs) from all cluster services
+#   - Forward traces  → Tempo  (gRPC OTLP)
+#   - Forward logs    → Loki   (Loki push API)
+#   - Forward metrics → Prometheus (remote_write)
+#   - Scrape scloud-dns Prometheus metrics (port 9153)
+#   - Self-scrape Alloy metrics (port 12345)
+# ------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: scloud-observability
+  labels:
+    app: alloy
+data:
+  config.alloy: |
+    // ── OTEL receiver (gRPC + HTTP) ──────────────────────────────────────────
+    otelcol.receiver.otlp "default" {
+      grpc {
+        endpoint = "0.0.0.0:4317"
+      }
+      http {
+        endpoint = "0.0.0.0:4318"
+      }
+      output {
+        traces  = [otelcol.exporter.otlp.tempo.input]
+        logs    = [otelcol.exporter.loki.default.input]
+        metrics = [otelcol.exporter.prometheus.default.input]
+      }
+    }
+
+    // ── Forward traces to Tempo ───────────────────────────────────────────────
+    otelcol.exporter.otlp "tempo" {
+      client {
+        endpoint = "tempo.scloud-observability.svc:4317"
+        tls {
+          insecure = true
+        }
+      }
+    }
+
+    // ── Forward logs to Loki ──────────────────────────────────────────────────
+    otelcol.exporter.loki "default" {
+      forward_to = [loki.write.default.receiver]
+    }
+
+    loki.write "default" {
+      endpoint {
+        url = "http://loki.scloud-observability.svc:3100/loki/api/v1/push"
+      }
+    }
+
+    // ── Forward OTEL metrics to Prometheus via remote_write ───────────────────
+    otelcol.exporter.prometheus "default" {
+      forward_to = [prometheus.remote_write.default.receiver]
+    }
+
+    prometheus.remote_write "default" {
+      endpoint {
+        url = "http://prometheus.scloud-observability.svc:9090/api/v1/write"
+      }
+    }
+
+    // ── Scrape scloud-dns Prometheus metrics ──────────────────────────────────
+    prometheus.scrape "scloud_dns" {
+      targets = [{
+        __address__ = "scloud-dns.scloud-dns.svc:9153",
+      }]
+      forward_to      = [prometheus.remote_write.default.receiver]
+      scrape_interval = "30s"
+    }
+
+    // ── Self-scrape Alloy metrics ─────────────────────────────────────────────
+    prometheus.scrape "alloy_self" {
+      targets = [{
+        __address__ = "localhost:12345",
+      }]
+      forward_to      = [prometheus.remote_write.default.receiver]
+      scrape_interval = "30s"
+    }

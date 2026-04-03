@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: scloud-observability
+  labels:
+    app: grafana
+data:
+  # Provisioned datasources — loaded at startup, no manual UI steps needed
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus.scloud-observability.svc:9090
+        access: proxy
+        isDefault: true
+        jsonData:
+          timeInterval: "30s"
+
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki.scloud-observability.svc:3100
+        access: proxy
+        jsonData:
+          derivedFields:
+            - name: TraceID
+              matcherRegex: '"trace_id":"(\w+)"'
+              url: "$${__value.raw}"
+              datasourceUid: tempo
+
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo.scloud-observability.svc:3200
+        access: proxy
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            spanStartTimeShift: "-1m"
+            spanEndTimeShift: "1m"
+          serviceMap:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+
+  # Provisioning config paths
+  grafana.ini: |
+    [paths]
+    provisioning = /etc/grafana/provisioning
+
+    [server]
+    root_url = http://grafana.scloud.internal:3000
+
+    [auth.anonymous]
+    enabled = false
+
+    [log]
+    mode = console
+    level = info
