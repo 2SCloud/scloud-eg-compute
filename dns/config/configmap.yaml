@@ -163,7 +163,7 @@ data:
   scloud.internal.zone: |
     $TTL 300
     @   IN SOA  dns.scloud.internal. admin.scloud.internal. (
-                2024040201  ; serial — bump when records change
+                2026040301  ; serial — bump when records change
                 3600        ; refresh
                 900         ; retry
                 604800      ; expire
@@ -179,6 +179,11 @@ data:
 
     ; DNS server itself
     dns         IN CNAME  scloud-dns.scloud-dns.svc.cluster.local.
+
+    ; Observability stack
+    grafana     IN CNAME  grafana.scloud-observability.svc.cluster.local.
+    prometheus  IN CNAME  prometheus.scloud-observability.svc.cluster.local.
+    alloy       IN CNAME  alloy.scloud-observability.svc.cluster.local.
 
     ; Add records below as new services are deployed:
     ; <service>  IN CNAME  <name>.<namespace>.svc.cluster.local.
