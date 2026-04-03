@@ -21,7 +21,7 @@ spec:
   # Setting replicas to 0 will stop all Pods but will NOT delete the ReplicaSet.
   # To completely remove the ReplicaSet, use:
   # kubectl delete rs <ReplicaSet file> -n <namespace>
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: nginx
