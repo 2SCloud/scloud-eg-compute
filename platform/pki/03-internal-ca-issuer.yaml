@@ -1,0 +1,19 @@
+# ------------------------------------------------------------
+# Internal CA ClusterIssuer — used by every workload that needs a
+# TLS certificate for intra-cluster or public traffic.
+#
+# Reads the root CA secret minted by 02-root-ca.yaml and signs
+# Certificate resources with it. Because it's a ClusterIssuer, any
+# namespace (scloud-gateway, scloud-dns, scloud-frontend, etc.) can
+# reference it without per-namespace Issuer duplication.
+# ------------------------------------------------------------
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: scloud-internal-ca
+  labels:
+    app.kubernetes.io/component: pki
+    app.kubernetes.io/part-of: scloud-platform
+spec:
+  ca:
+    secretName: scloud-internal-root-ca

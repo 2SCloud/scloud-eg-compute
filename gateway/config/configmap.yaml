@@ -21,8 +21,25 @@ data:
 
     [server]
     bind = "0.0.0.0:8080"
-    admin_bind = "0.0.0.0:9090"
+    # Public HTTPS listener. The cert + key are mounted from the
+    # edge-gateway-tls secret (kubernetes.io/tls, issued by cert-manager
+    # — see gateway/config/tls-certificate.yaml).
+    tls_bind      = "0.0.0.0:8443"
+    tls_cert_file = "/etc/edge-gateway-tls/tls.crt"
+    tls_key_file  = "/etc/edge-gateway-tls/tls.key"
+    admin_bind    = "0.0.0.0:9090"
     graceful_shutdown_ms = 5000
+
+    [admin]
+    # Dev defaults. Rotate before exposing the admin API publicly.
+    # The hash is bcrypt("admin"). Generate a new one with:
+    #   htpasswd -bnBC 10 "" your-password | tr -d ':\n'
+    # JWT secret: 32+ chars, random. Generate with:
+    #   openssl rand -hex 32
+    username      = "admin"
+    password_hash = "$2a$10$JBBe.e7fib8padLfCuY5L.t0GIjc2YsO/hwfzu1hRFoWZBH6z3oSW"
+    jwt_secret    = "change-me-in-production-use-32-chars-min"
+    token_ttl_hours = 12
 
     [logging]
     level = "info"
@@ -33,6 +50,17 @@ data:
     runtime     = "wazero"
     cache_dir   = "/tmp/wasm-cache"
     max_modules = 64
+
+    [dns]
+    # DoH proxy upstream. Expected long-term target: scloud-dns.
+    # Temporarily pointed at 8.8.8.8 because the scloud-dns image
+    # listens on UDP:5353 but silently drops queries (config.json
+    # appears to be ignored upstream). Switch back to:
+    #   upstream_addr = "scloud-dns.scloud-dns.svc.cluster.local:53"
+    # once that bug is fixed.
+    upstream_addr    = "8.8.8.8:53"
+    query_timeout_ms = 2000
+    max_message_size = 65535
 
     [[modules]]
     id          = "waf"
@@ -53,7 +81,7 @@ data:
         normalize_path   = true
 
         scope_mode       = "prefix"
-        include          = ["/api", "/healthz"]
+        include          = ["/api", "/healthz", "/dns-query"]
         exclude          = ["/metrics", "/favicon.ico"]
         default_behavior = "protect"
 

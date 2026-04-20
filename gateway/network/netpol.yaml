@@ -1,23 +1,24 @@
 # ------------------------------------------------------------
 # scloud-gateway network policies
 #
-# The edge-gateway is the only external entrypoint — cluster pods
-# should never initiate connections to it.
+# Two policies, deliberately separated so each can be audited in
+# isolation:
 #
-# Ingress:
-#   - External LoadBalancer traffic is handled by kube-proxy (not
-#     governed by NetworkPolicy), so we don't need an ingress rule
-#     for it. NetworkPolicy only controls pod-to-pod traffic.
-#   - Explicitly deny all pod-initiated ingress: no namespace selector
-#     means no cluster pod can reach the gateway directly.
+#   1. default-deny-ingress — no cluster pod may initiate connections
+#      to the gateway. External NodePort / LoadBalancer traffic is not
+#      governed by NetworkPolicy, so real clients are unaffected.
 #
-# Egress (unrestricted by design):
-#   - Forwards HTTP to scloud-compute/nginx
-#   - Queries DNS (CoreDNS / scloud-dns)
-#   - Will forward OTEL to scloud-observability/alloy once instrumented
+#   2. allow-gateway-egress — explicit egress allow-list. The gateway
+#      runs in a zero-trust posture: everything not listed below is
+#      denied. Known outbound flows today:
 #
-# If you want to lock down egress too, replace the unrestricted egress
-# comment with explicit rules for ports 80 (nginx), 53 (DNS), 4318 (OTEL).
+#        - kube-system CoreDNS on 53 (service name resolution)
+#        - scloud-dns on 53 (DoH /dns-query proxy → plain DNS)
+#
+#      Add further rules here when new upstreams land (e.g. OTEL
+#      traces to scloud-observability:4318, upstream HTTP to
+#      scloud-compute:80). Egress denial is fail-loud, so new flows
+#      will surface as visible connection timeouts, not silent drops.
 # ------------------------------------------------------------
 ---
 # Default deny all pod-initiated ingress into the gateway namespace.
@@ -33,3 +34,67 @@ spec:
   policyTypes:
     - Ingress
   # No ingress rules = no cluster pod can reach gateway pods directly
+---
+# Explicit egress allow-list for the edge-gateway pods.
+# Anything not matched here is dropped by the CNI.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-egress
+  namespace: scloud-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: edge-gateway
+  policyTypes:
+    - Egress
+  egress:
+    # Cluster DNS (CoreDNS) — required for any hostname resolution,
+    # including resolving scloud-dns.scloud-dns.svc.cluster.local
+    # before we can talk to it.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # scloud-dns — the authoritative DNS server this gateway proxies
+    # DoH traffic to. NetworkPolicy egress `port:` refers to the
+    # destination port on the backing pod AFTER kube-proxy DNAT, not
+    # the Service port. scloud-dns currently listens on 5353 despite
+    # config.json asking for 53 (image quirk; the Service remaps
+    # 53→5353). We allow 5353 explicitly and keep 53 listed too so
+    # when scloud-dns is fixed upstream nothing here needs to change.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: scloud-dns
+          podSelector:
+            matchLabels:
+              app: scloud-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 5353
+        - protocol: TCP
+          port: 5353
+
+    # TEMPORARY — public DNS fallback (8.8.8.8) while scloud-dns is
+    # not responding to queries. Remove once the scloud-dns image bug
+    # is resolved and gateway.dns.upstream_addr is pointed back at
+    # scloud-dns.scloud-dns.svc.cluster.local:53.
+    - to:
+        - ipBlock:
+            cidr: 8.8.8.8/32
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
