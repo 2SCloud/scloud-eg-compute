@@ -1,0 +1,31 @@
+# ------------------------------------------------------------
+# Edge Gateway Admin API — internal-only Service
+#
+# The admin API (port 9090) is NOT the public entrypoint. It is
+# JWT-protected and consumed by the frontend / operators only.
+#
+# ClusterIP (not NodePort/LoadBalancer) keeps it off the public
+# network. Reach it from a dev machine via:
+#
+#   kubectl port-forward -n scloud-gateway svc/edge-gateway-admin 9090:9090
+#
+# Production: front this with an authenticated Ingress (TLS + the
+# existing JWT) on a separate hostname.
+# ------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-gateway-admin
+  namespace: scloud-gateway
+  labels:
+    app: edge-gateway
+    app.kubernetes.io/component: admin-api
+spec:
+  type: ClusterIP
+  selector:
+    app: edge-gateway
+  ports:
+    - name: admin
+      protocol: TCP
+      port: 9090
+      targetPort: admin

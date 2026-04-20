@@ -75,7 +75,9 @@ spec:
           - name: http
             containerPort: 8080
             protocol: TCP
-          # admin port 9090 is bound to 127.0.0.1 in config.toml — not exposed here
+          - name: admin
+            containerPort: 9090
+            protocol: TCP
 
         volumeMounts:
           - name: gateway-config
