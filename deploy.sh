@@ -46,27 +46,52 @@ docker build -t 2scloud/frontend:latest "$EG_REPO/frontend"
 log "Loading frontend image into k3s..."
 docker save 2scloud/frontend:latest | sudo k3s ctr images import -
 
+# ── 0. Platform PKI (cert-manager must already be installed) ─────────────────
+step "0/4  Deploying platform PKI"
+
+log "Applying PKI bootstrap issuer + root CA + internal CA issuer..."
+kubectl apply -f "$REPO_ROOT/platform/pki/"
+
+log "Waiting for scloud-internal-root-ca certificate to be issued..."
+kubectl wait --for=condition=Ready certificate/scloud-internal-root-ca \
+  -n cert-manager --timeout=120s
+
+log "Waiting for scloud-internal-ca ClusterIssuer to be ready..."
+kubectl wait --for=condition=Ready clusterissuer/scloud-internal-ca --timeout=60s
+
 # ── 1. scloud-observability ───────────────────────────────────────────────────
-step "1/4  Deploying scloud-observability"
+# Skip with: SKIP_OBSERVABILITY=1 ./deploy.sh
+# The rest of the stack (dns, gateway, frontend, compute) runs fine
+# without it. scloud-dns ships OTEL traces to alloy.scloud-observability
+# via fire-and-forget HTTP — when alloy is missing it logs a warning
+# per export and keeps serving DNS normally. Use this flag on memory-
+# constrained hosts (under ~6 GiB RAM) where Mimir/Loki/Tempo cause
+# OOM / crashloop storms.
+if [[ "${SKIP_OBSERVABILITY:-0}" == "1" ]]; then
+  step "1/4  Skipping scloud-observability (SKIP_OBSERVABILITY=1)"
+  log "Observability stack not deployed. Other components will still run."
+else
+  step "1/4  Deploying scloud-observability"
 
-(cd "$REPO_ROOT/observability-stack" && bash deploy-scloud-observability.sh)
+  (cd "$REPO_ROOT/observability-stack" && bash deploy-scloud-observability.sh)
 
-log "Applying observability RBAC..."
-kubectl apply -f "$REPO_ROOT/observability/rbac/clusterrole.yaml"
-kubectl apply -f "$REPO_ROOT/observability/rbac/clusterrolebinding.yaml"
-kubectl apply -f "$REPO_ROOT/observability/rbac/serviceaccount.yaml"
+  log "Applying observability RBAC..."
+  kubectl apply -f "$REPO_ROOT/observability/rbac/clusterrole.yaml"
+  kubectl apply -f "$REPO_ROOT/observability/rbac/clusterrolebinding.yaml"
+  kubectl apply -f "$REPO_ROOT/observability/rbac/serviceaccount.yaml"
 
-log "Applying observability governance..."
-kubectl apply -f "$REPO_ROOT/observability/governance/"
+  log "Applying observability governance..."
+  kubectl apply -f "$REPO_ROOT/observability/governance/"
 
-log "Applying observability storage..."
-kubectl apply -f "$REPO_ROOT/observability/storage/"
+  log "Applying observability storage..."
+  kubectl apply -f "$REPO_ROOT/observability/storage/"
 
-log "Deploying Mimir (monolithic)..."
-kubectl apply -f "$REPO_ROOT/observability/workloads/mimir/"
+  log "Deploying Mimir (monolithic)..."
+  kubectl apply -f "$REPO_ROOT/observability/workloads/mimir/"
 
-log "Applying observability network policies..."
-kubectl apply -f "$REPO_ROOT/observability/network/netpol.yaml"
+  log "Applying observability network policies..."
+  kubectl apply -f "$REPO_ROOT/observability/network/netpol.yaml"
+fi
 
 # ── 2. scloud-dns ─────────────────────────────────────────────────────────────
 step "2/4  Deploying scloud-dns"
@@ -105,6 +130,10 @@ kubectl apply -f "$REPO_ROOT/gateway/governance/"
 log "Applying scloud-edge-gateway configuration..."
 kubectl apply -f "$REPO_ROOT/gateway/config/"
 
+log "Waiting for edge-gateway TLS certificate to be issued..."
+kubectl wait --for=condition=Ready certificate/edge-gateway-tls \
+  -n scloud-gateway --timeout=120s
+
 log "Applying scloud-edge-gateway workloads..."
 kubectl apply -f "$REPO_ROOT/gateway/workloads/"
 
@@ -130,12 +159,33 @@ kubectl apply -f "$REPO_ROOT/platform/workloads/"
 log "Waiting for platform workloads to be ready..."
 kubectl rollout status deployment/nginx-deployment -n scloud-compute --timeout=120s
 
+# ── 5. scloud-frontend (admin UI) ────────────────────────────────────────────
+step "5/5  Deploying scloud-frontend"
+
+kubectl apply -f "$REPO_ROOT/frontend/namespace.yaml"
+
+log "Applying scloud-frontend configuration..."
+kubectl apply -f "$REPO_ROOT/frontend/config/"
+
+log "Applying scloud-frontend network policies..."
+kubectl apply -f "$REPO_ROOT/frontend/network/"
+
+log "Applying scloud-frontend workloads..."
+kubectl apply -f "$REPO_ROOT/frontend/workloads/"
+
+log "Waiting for frontend to be ready..."
+kubectl rollout status deployment/scloud-frontend -n scloud-frontend --timeout=120s
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 step "2SCloud private cloud bootstrap complete"
 echo
 echo "  Grafana      →  http://grafana.scloud.internal:3000  (admin / scloud-change-me)"
 echo "  Prometheus   →  http://prometheus.scloud.internal:9090"
-echo "  Gateway      →  http://gateway.scloud.internal:30080"
+echo "  Gateway HTTP →  http://gateway.scloud.internal:30080"
+echo "  Gateway TLS  →  https://gateway.scloud.internal:30443   (DoH /dns-query)"
+echo "  Frontend     →  kubectl port-forward -n scloud-frontend svc/scloud-frontend 3000:80"
+echo "                  then open http://localhost:3000  (admin / admin)"
+echo "  Admin API    →  kubectl port-forward -n scloud-gateway  svc/edge-gateway-admin 9090:9090"
 echo "  DNS          →  scloud-dns.scloud-dns.svc:53"
 echo
 echo "  IMPORTANT: Change the Grafana admin password before exposing to users."

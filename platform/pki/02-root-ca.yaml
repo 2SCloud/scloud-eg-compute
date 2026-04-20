@@ -1,0 +1,46 @@
+# ------------------------------------------------------------
+# Root CA — the trust anchor for every internal service certificate.
+#
+# Lives in the `cert-manager` namespace so its private key is reused
+# across all namespaces as an issuing CA (cert-manager reads it from
+# the Issuer below).
+#
+# 10-year validity, 5-year renewal window — this matches the
+# industry convention for internal private CAs. When you rotate,
+# pre-stage the new root alongside the old one, cut over gradually.
+#
+# In production, replace this with a cert signed by your corporate
+# PKI root (Venafi, HashiCorp Vault PKI, AWS Private CA, etc.).
+# ------------------------------------------------------------
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: scloud-internal-root-ca
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/component: pki
+    app.kubernetes.io/part-of: scloud-platform
+spec:
+  isCA: true
+  commonName: 2SCloud Internal Root CA
+  subject:
+    organizations:
+      - 2SCloud
+    organizationalUnits:
+      - Platform Security
+    countries:
+      - FR
+  duration: 87600h    # 10 years
+  renewBefore: 43800h # 5 years
+  secretName: scloud-internal-root-ca
+  privateKey:
+    algorithm: ECDSA
+    size: 384
+    rotationPolicy: Never
+  issuerRef:
+    name: scloud-selfsigned-bootstrap
+    kind: ClusterIssuer
+    group: cert-manager.io
+  usages:
+    - cert sign
+    - crl sign

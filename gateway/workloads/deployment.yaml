@@ -52,6 +52,15 @@ spec:
               - key: waf.json
                 path: waf.json
 
+        # Public TLS cert (issued by cert-manager — see
+        # gateway/config/tls-certificate.yaml). Renewed in place by
+        # cert-manager; the kubelet rewrites the mounted files and the
+        # gateway picks them up on the next TLS handshake.
+        - name: tls
+          secret:
+            secretName: edge-gateway-tls
+            defaultMode: 0400
+
         # Writable WASM compilation cache (wazero JIT cache)
         - name: wasm-cache
           emptyDir: {}
@@ -75,6 +84,9 @@ spec:
           - name: http
             containerPort: 8080
             protocol: TCP
+          - name: https
+            containerPort: 8443
+            protocol: TCP
           - name: admin
             containerPort: 9090
             protocol: TCP
@@ -85,6 +97,9 @@ spec:
             readOnly: true
           - name: waf-rules
             mountPath: /app/internal/config/rules
+            readOnly: true
+          - name: tls
+            mountPath: /etc/edge-gateway-tls
             readOnly: true
           - name: wasm-cache
             mountPath: /tmp/wasm-cache
