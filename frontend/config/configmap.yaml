@@ -1,6 +1,16 @@
 # ------------------------------------------------------------
 # Frontend runtime environment
-# NEXT_PUBLIC_API_URL points to the edge gateway admin API.
+#
+# NEXT_PUBLIC_API_URL must point to the edge-gateway ADMIN API
+# (port 9090), NOT the public gateway (port 8080). The admin API
+# is served by the dedicated `edge-gateway-admin` ClusterIP service.
+# Hitting the public gateway returns 404 — its routes are the WAF-
+# filtered app, not /api/modules, /api/waf/rules, etc.
+#
+# Note: NEXT_PUBLIC_* is baked into the client bundle at build time.
+# The real URL the browser uses must be set via the Docker build arg
+# in frontend-build (Makefile). This ConfigMap value is only the
+# server-side fallback used during SSR/RSC.
 # When empty, the dashboard uses generated mock data.
 # ------------------------------------------------------------
 apiVersion: v1
@@ -11,6 +21,6 @@ metadata:
   labels:
     app: scloud-frontend
 data:
-  NEXT_PUBLIC_API_URL: "http://edge-gateway.scloud-gateway.svc.cluster.local"
+  NEXT_PUBLIC_API_URL: "http://edge-gateway-admin.scloud-gateway.svc.cluster.local:9090"
   HOSTNAME: "0.0.0.0"
   PORT: "3000"
