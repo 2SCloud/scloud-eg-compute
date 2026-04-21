@@ -51,17 +51,15 @@ data:
     cache_dir   = "/tmp/wasm-cache"
     max_modules = 64
 
-    [dns]
-    # TODO: once the scloud-dns image bug is fixed and we can point
-    # DoH proxy upstream. Expected long-term target: scloud-dns.
-    # Temporarily pointed at 8.8.8.8 because the scloud-dns image
-    # listens on UDP:5353 but silently drops queries (config.json
-    # appears to be ignored upstream). Switch back to:
-    #   upstream_addr = "scloud-dns.scloud-dns.svc.cluster.local:53"
-    # once that bug is fixed.
-    upstream_addr    = "8.8.8.8:53"
-    query_timeout_ms = 2000
-    max_message_size = 65535
+    [doh]
+    # DoH (RFC 8484) passthrough — the edge gateway receives HTTP DoH
+    # requests on /dns-query and forwards them to scloud-dns's plain-HTTP
+    # DoH endpoint. TLS termination (if any) happens upstream of the
+    # gateway; scloud-dns listens on TCP:8053 without TLS.
+    enabled      = true
+    paths        = ["/dns-query"]
+    upstream_url = "http://scloud-dns.scloud-dns.svc.cluster.local:8053"
+    timeout_ms   = 5000
 
     [[modules]]
     id          = "waf"

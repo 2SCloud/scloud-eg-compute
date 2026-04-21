@@ -10,7 +10,9 @@
 # Key differences from the upstream example config:
 #   - health_bind changed to 0.0.0.0:8081 (required for k8s probes)
 #   - Only UDP+TCP listeners on 0.0.0.0 (no 10.0.0.1 internal-resolver)
-#   - DoT and DoH disabled (no TLS certs in cluster yet)
+#   - DoT disabled (no TLS certs in cluster yet)
+#   - DoH enabled on 0.0.0.0:8053 (plain HTTP — TLS is terminated at
+#     the edge-gateway, which reverse-proxies /dns-query to us)
 #   - Log to stdout only (no file — logs go to the OTEL collector)
 #   - scloud.internal. zone added as authoritative master
 #   - Recursion allowed for cluster pod CIDRs
@@ -26,9 +28,8 @@ data:
   config.json: |
     {
       "server": {
-        "instance_id": "scloud-dns-k8s",
         "name": "scloud-dns",
-        "version": "0.2.3",
+        "version": "0.3.0",
         "environment": "production",
         "max_concurrent_requests": 5000,
         "graceful_shutdown_timeout_secs": 15,
@@ -40,8 +41,8 @@ data:
         "bind_port": 53
       },
       "workers": {
-        "listener": 4,
         "tcp_acceptor": 1,
+        "doh_acceptor": 1,
         "decoder": 2,
         "query_dispatcher": 1,
         "cache_lookup": 2,
@@ -109,8 +110,13 @@ data:
         }
       ],
       "doh": {
-        "enabled": false,
-        "bind": "0.0.0.0:443"
+        "enabled": true,
+        "bind": "0.0.0.0:8053",
+        "terminate_tls": false,
+        "tls_cert_path": "",
+        "tls_key_path": "",
+        "paths": ["/dns-query"],
+        "allowed_origins": []
       },
       "forwarder": [
         {

@@ -24,6 +24,11 @@ spec:
       port: 53
       targetPort: 5353
       protocol: TCP
+    - name: dns-doh
+      # DoH endpoint consumed by the edge-gateway's [doh] proxy route.
+      port: 8053
+      targetPort: dns-doh
+      protocol: TCP
     - name: metrics
       port: 9153
       targetPort: metrics
