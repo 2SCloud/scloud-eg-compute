@@ -34,6 +34,16 @@ data:
     cache_dir   = "/tmp/wasm-cache"
     max_modules = 64
 
+    [doh]
+    # DoH (RFC 8484) passthrough — the edge gateway receives HTTP DoH
+    # requests on /dns-query and forwards them to scloud-dns's plain-HTTP
+    # DoH endpoint. TLS termination (if any) happens upstream of the
+    # gateway; scloud-dns listens on TCP:8053 without TLS.
+    enabled      = true
+    paths        = ["/dns-query"]
+    upstream_url = "http://scloud-dns.scloud-dns.svc.cluster.local:8053"
+    timeout_ms   = 5000
+
     [[modules]]
     id          = "waf"
     enabled     = true
