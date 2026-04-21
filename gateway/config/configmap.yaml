@@ -52,6 +52,7 @@ data:
     max_modules = 64
 
     [dns]
+    # TODO: once the scloud-dns image bug is fixed and we can point
     # DoH proxy upstream. Expected long-term target: scloud-dns.
     # Temporarily pointed at 8.8.8.8 because the scloud-dns image
     # listens on UDP:5353 but silently drops queries (config.json

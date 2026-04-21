@@ -86,6 +86,7 @@ spec:
         - protocol: TCP
           port: 5353
 
+    # TODO: once the scloud-dns image bug is fixed and we can point
     # TEMPORARY — public DNS fallback (8.8.8.8) while scloud-dns is
     # not responding to queries. Remove once the scloud-dns image bug
     # is resolved and gateway.dns.upstream_addr is pointed back at
