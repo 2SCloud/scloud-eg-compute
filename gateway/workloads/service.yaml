@@ -30,3 +30,8 @@ spec:
     port: 80
     targetPort: http   # resolves to containerPort named "http" (8080)
     nodePort: 30080
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: https  # resolves to containerPort named "https" (8443)
+    nodePort: 30443

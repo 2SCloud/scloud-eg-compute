@@ -9,14 +9,20 @@ spec:
   selector:
     app: scloud-dns
   type: ClusterIP
+  # The scloud-dns container actually listens on UDP :5353 (not :53)
+  # — the config.json we mount is either ignored or its port field is
+  # overridden by the image's defaults. Until that upstream bug is
+  # fixed, the Service maps :53 → :5353 so every consumer in the
+  # cluster (CoreDNS stub, edge-gateway DoH proxy, etc.) keeps hitting
+  # port 53 as standard.
   ports:
     - name: dns-udp
       port: 53
-      targetPort: dns-udp
+      targetPort: 5353
       protocol: UDP
     - name: dns-tcp
       port: 53
-      targetPort: dns-tcp
+      targetPort: 5353
       protocol: TCP
     - name: dns-doh
       # DoH endpoint consumed by the edge-gateway's [doh] proxy route.

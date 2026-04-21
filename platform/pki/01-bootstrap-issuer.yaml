@@ -1,0 +1,19 @@
+# ------------------------------------------------------------
+# Bootstrap ClusterIssuer — self-signs the root CA certificate below.
+#
+# This is only used once, to sign the root CA. All service
+# certificates are then issued by `scloud-internal-ca` (see
+# 03-internal-ca-issuer.yaml), which chains back to this root.
+#
+# Do NOT use this issuer directly to sign workload certs — it has
+# no policy, no audit trail, and short-circuits the trust chain.
+# ------------------------------------------------------------
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: scloud-selfsigned-bootstrap
+  labels:
+    app.kubernetes.io/component: pki
+    app.kubernetes.io/part-of: scloud-platform
+spec:
+  selfSigned: {}

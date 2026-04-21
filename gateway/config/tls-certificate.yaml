@@ -1,0 +1,54 @@
+# ------------------------------------------------------------
+# Edge Gateway TLS certificate (public-facing + cluster-internal)
+#
+# Signed by the platform's internal CA (scloud-internal-ca, see
+# platform/pki/). For dev, clients must trust the internal root CA
+# or pass -k / --insecure. For production, replace the issuerRef
+# with an ACME / Let's Encrypt ClusterIssuer and add the public DNS
+# name as the primary SAN.
+#
+# 90-day cert, auto-renewed 30 days before expiry by cert-manager.
+# Rotation is automatic — no human involvement.
+#
+# The resulting Secret `edge-gateway-tls` is a kubernetes.io/tls
+# secret containing tls.crt, tls.key, and ca.crt. It's mounted
+# read-only into the gateway pod and loaded at startup.
+# ------------------------------------------------------------
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: edge-gateway-tls
+  namespace: scloud-gateway
+  labels:
+    app: edge-gateway
+    app.kubernetes.io/component: tls
+spec:
+  secretName: edge-gateway-tls
+  duration: 2160h        # 90 days
+  renewBefore: 720h      # 30 days
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  subject:
+    organizations:
+      - 2SCloud
+    organizationalUnits:
+      - Edge Gateway
+  commonName: gateway.scloud.internal
+  dnsNames:
+    - gateway.scloud.internal
+    - edge-gateway.scloud-gateway.svc.cluster.local
+    - edge-gateway.scloud-gateway.svc
+    - edge-gateway
+    # For local dev via port-forward. Safe to leave — not exposed to
+    # the public internet from inside the cluster.
+    - localhost
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+  issuerRef:
+    name: scloud-internal-ca
+    kind: ClusterIssuer
+    group: cert-manager.io
